@@ -1,11 +1,26 @@
+use argparse::{ArgumentParser, Store, StoreTrue};
 use regex::Regex;
 use std::collections::HashMap;
-use std::env;
 use std::fs;
 
 fn main() -> std::io::Result<()> {
-  let args: Vec<String> = env::args().collect();
-  let dirname = &args[1];
+  // let args: Vec<String> = env::args().collect();
+  let mut dirname = String::from("");
+  let mut dry_run = false;
+  {
+    // this block limits scope of borrows by ap.refer() method
+    let mut ap = ArgumentParser::new();
+    ap.set_description("Deletes outdated artifact files with rust-style names (postfixed with a hyphen and 16 hex digits).");
+    ap.refer(&mut dirname)
+      .add_option(&["-d", "--dir"], Store, "dirname");
+    ap.refer(&mut dry_run).add_option(
+      &["--dry-run"],
+      StoreTrue,
+      "Dry run without actual file removal",
+    );
+    ap.parse_args_or_exit();
+  }
+
   let paths = fs::read_dir(dirname)?;
 
   let mut path_map = paths_to_hashmap(paths)?;
@@ -27,8 +42,10 @@ fn main() -> std::io::Result<()> {
     for entry in vec {
       all_size += entry.metadata()?.len();
       let path = entry.path();
-      println!("Removing {:?}", path);
-      fs::remove_file(path).unwrap();
+      println!("Detected outdated artifact {:?}", path);
+      if !dry_run {
+        fs::remove_file(path).unwrap();
+      }
     }
   }
 
