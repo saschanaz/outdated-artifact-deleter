@@ -8,20 +8,7 @@ fn main() -> std::io::Result<()> {
   let dirname = &args[1];
   let paths = fs::read_dir(dirname)?;
 
-  let mut path_map: HashMap<String, Vec<fs::DirEntry>> = HashMap::new();
-
-  for path in paths {
-    let entry = path?;
-    let file_type = entry.file_type()?;
-    if file_type.is_file() {
-      let entry_path = entry.path();
-      let stem = osstr_to_string(&entry_path.file_stem()).unwrap();
-      let ext = osstr_to_string(&entry_path.extension()).unwrap();
-      if let Some(result) = get_rust_cache_name(&stem) {
-        insert_hash_vec(&mut path_map, result + "." + &ext, entry);
-      }
-    }
-  }
+  let mut path_map = paths_to_hashmap(paths)?;
 
   let keys: Vec<String> = path_map.keys().map(|s| s.clone()).collect();
   let mut all_size = 0;
@@ -48,6 +35,25 @@ fn main() -> std::io::Result<()> {
   println!("Saved total size of {} MiB", all_size / (1024 * 1024));
 
   Ok(())
+}
+
+fn paths_to_hashmap(paths: fs::ReadDir) -> std::io::Result<HashMap<String, Vec<fs::DirEntry>>> {
+  let mut path_map: HashMap<String, Vec<fs::DirEntry>> = HashMap::new();
+
+  for path in paths {
+    let entry = path?;
+    let file_type = entry.file_type()?;
+    if file_type.is_file() {
+      let entry_path = entry.path();
+      let stem = osstr_to_string(&entry_path.file_stem()).unwrap();
+      let ext = osstr_to_string(&entry_path.extension()).unwrap();
+      if let Some(result) = get_rust_cache_name(&stem) {
+        insert_hash_vec(&mut path_map, result + "." + &ext, entry);
+      }
+    }
+  }
+
+  Ok(path_map)
 }
 
 fn osstr_to_string(osstr: &Option<&std::ffi::OsStr>) -> Option<String> {
